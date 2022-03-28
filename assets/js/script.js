@@ -1,7 +1,7 @@
 var tasks = {};
 
+// create elements that make up a task item
 var createTask = function(taskText, taskDate, taskList) {
-  // create elements that make up a task item
   var taskLi = $("<li>").addClass("list-group-item");
   var taskSpan = $("<span>")
     .addClass("badge badge-primary badge-pill")
@@ -9,19 +9,29 @@ var createTask = function(taskText, taskDate, taskList) {
   var taskP = $("<p>")
     .addClass("m-1")
     .text(taskText);
-
-  // append span and p element to parent li
   taskLi.append(taskSpan, taskP);
-
-
-  // append to ul list on the page
+  auditTask(taskLi);
   $("#list-" + taskList).append(taskLi);
 };
 
+//task auditing
+var auditTask = function(taskEl) {
+  var date = $(taskEl).find("span")
+    .text()
+    .trim();
+  var time = moment(date, "L")
+    .set("hour", 17);
+  $(taskEl).removeClass("list-group-item-warning list-group-item-danger");
+  if (moment().isAfter(time)) {
+    $(taskEl).addClass("list-group-item-danger");
+  } else if (Math.abs(moment().diff(time, "days")) <= 2) {
+    $(taskEl).addClass("list-group-item-warning");
+  }
+};
+
+// if nothing in localStorage, create a new object to track all task status arrays
 var loadTasks = function() {
   tasks = JSON.parse(localStorage.getItem("tasks"));
-
-  // if nothing in localStorage, create a new object to track all task status arrays
   if (!tasks) {
     tasks = {
       toDo: [],
@@ -30,11 +40,8 @@ var loadTasks = function() {
       done: []
     };
   }
-
-  // loop over object properties
   $.each(tasks, function(list, arr) {
     console.log(list, arr);
-    // then loop over sub-array
     arr.forEach(function(task) {
       createTask(task.text, task.date, list);
     });
@@ -87,11 +94,17 @@ $(".list-group").on("click", "span", function() {
     .addClass("form-control")
     .val(date);
   $(this).replaceWith(dateInput);
+  dateInput.datepicker({
+    minDate: 1
+    onClose: function() {
+      $(this).trigger("change");
+    }
+  });
   dateInput.trigger("focus");
 })
 
 // convert back when User clicks out of element
-$(".list-group").on("blur", "input[type='text']", function() {
+$(".list-group").on("change", "input[type='text']", function() {
   var date = $(this)
     .val()
     .trim();
@@ -108,40 +121,37 @@ $(".list-group").on("blur", "input[type='text']", function() {
     .addClass("badge badge-primary badge-pill")
     .text(date);
   $(this).replaceWith(taskSpan);
+  auditTask($(taskSpan).closest(".list-group-item"));
 })
 
 // modal was triggered
 $("#task-form-modal").on("show.bs.modal", function() {
-  // clear values
   $("#modalTaskDescription, #modalDueDate").val("");
 });
 
 // modal is fully visible
 $("#task-form-modal").on("shown.bs.modal", function() {
-  // highlight textarea
   $("#modalTaskDescription").trigger("focus");
 });
 
 // save button in modal was clicked
 $("#task-form-modal .btn-primary").click(function() {
-  // get form values
   var taskText = $("#modalTaskDescription").val();
   var taskDate = $("#modalDueDate").val();
-
   if (taskText && taskDate) {
     createTask(taskText, taskDate, "toDo");
-
-    // close modal
     $("#task-form-modal").modal("hide");
-
-    // save in tasks array
     tasks.toDo.push({
       text: taskText,
       date: taskDate
     });
-
     saveTasks();
   }
+});
+
+// modal date picker
+$("#modalDueDate").datepicker({
+  minDate: 1
 });
 
 // sortable list
